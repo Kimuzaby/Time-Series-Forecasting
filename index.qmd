@@ -1,0 +1,474 @@
+---
+title: "Time-Series Forecasting U.S. Exports to Canada"
+subtitle: "Prediction of Trade Volume"
+author: "Erick Xavier Maldonado"
+format:
+  html: 
+    code-fold: false
+    code-overflow: wrap
+    toc: true
+execute:
+  warning: false
+  messages: false
+  echo: false
+editor: source
+---
+
+```{r}
+library(readxl)
+library(forecast)
+library(strucchange)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(zoo)
+
+options(scipen=999)
+```
+
+# 1. Business Understanding
+
+The client is a large U.S. Manufacturing firm that exports a significant volume of goods to Canada. The firm faces challenges in supply chain planning due to fluctuations in international demand. Accurate forecasting of export volumes is critical for:
+
+- **Inventory Management:** Ensuring raw materials are available to meet production schedules without overstocking.
+
+- **Logistics Planning:** Securing freight capacity (trucking/rail) in advance to avoid spot-market premiums.
+
+**Objective:** The goal is to forecast the value of U.S. Exports to Canada (EXPCA) for the upcoming 6 months (Sept 2025 – Feb 2026).
+
+**Research Questions:** To guide this analysis, I propose the following research questions:
+
+- To what extent does the inclusion of a structural break variable, representing the COVID-19 shock, improve the predictive accuracy of linear regression models for U.S.-Canada trade?
+
+- Does a short-term exponential smoothing model (focused on the post-2022 recovery) provide a more risk-averse forecast for inventory management compared to a long-term trend regression?
+
+**Methodology:** I have restricted our analysis to the Post-Financial Crisis era (2010–2025). This excludes the structural volatility of the pre-2008 economy, ensuring the model's trends reflect modern supply chain dynamics. I will compare:
+
+- **Regression Analysis:** Incorporating trend, seasonality, and a dummy variable to account for the COVID-19 structural shock.
+
+- **Exponential Smoothing (ETS):** Focusing on the post-shock recovery period to capture the most recent market dynamics.
+
+The model with the lowest error (RMSE/MAPE) and highest stability will be selected for deployment.
+
+
+# 2. Data Understanding and Preparation
+
+We utilize the **EXPCA** dataset, representing Monthly U.S. Exports to Canada (Nominal Millions of Dollars), Not Seasonally Adjusted.
+
+
+```{r}
+
+
+mydata <- read_excel("EXPCA_time_series.xlsx", sheet = "Monthly")
+
+# Filter data to start from 2010
+mydata_filtered <- mydata %>%
+  filter(observation_date >= as.Date("2010-01-01"))
+
+# Display Head and Tail as formatted tables (Aesthetic Fix)
+knitr::kable(head(mydata_filtered), caption = "First 6 Rows of Data")
+knitr::kable(tail(mydata_filtered), caption = "Last 6 Rows of Data")
+
+# Create Time Series Object
+ts_data <- ts(mydata_filtered$EXPCA, start = c(2010, 1), frequency = 12)
+
+# Initial EDA Plots
+autoplot(ts_data) +
+  ggtitle("U.S. Exports to Canada (2010-2025)") +
+  ylab("Millions of Dollars") +
+  xlab("Year") +
+  theme_minimal()
+
+# Missing Value Check
+missing_count <- sum(is.na(ts_data))
+cat("Total Missing Values:", missing_count, "\n")
+
+# Histogram
+ggplot(data.frame(Exports=as.numeric(ts_data)), aes(x=Exports)) +
+  geom_histogram(binwidth=1000, fill="#2c3e50", color="white") +
+  ggtitle("Distribution of Monthly Export Values (2010-2025)") +
+  xlab("Exports (Millions USD)") +
+  theme_minimal()
+
+# Boxplot for Outliers
+ggplot(data.frame(Exports=as.numeric(ts_data)), aes(y=Exports)) +
+  geom_boxplot(fill="orange", alpha=0.5) +
+  ggtitle("Outlier Analysis: Boxplot of Exports") +
+  theme_minimal()
+
+```
+
+Observation: The time series shows a strong upward trend over the decades, confirming the growth of trade relations. There is distinct seasonality, likely dipping in winter months and peaking in spring/fall. Major structural breaks are visible, most notably the 2008 Financial Crisis and the sharp drop/volatility during COVID-19 in 2020.\
+
+The data contains 0 missing values, ensuring a complete time series. The histogram shows a slightly bimodal distribution, reflecting the shift from lower trade volumes in 2010 to higher volumes post-2021. The boxplot reveals no extreme statistical outliers that would require removal, though the volatility of 2020 is visible.\
+
+# 3. Modeling with Regression Approach
+
+### Step 3.1
+
+Structural Break Analysis\
+
+We analyze the series for structural breaks to confirm the impact of COVID-19. However, per client instructions, we will retain the pre-COVID history and instead manage the disruption using an exogenous variable.\
+
+
+```{r}
+bp <- breakpoints(ts_data ~ 1)
+
+# Extract the break dates directly
+bd <- breakdates(bp)
+
+# Create a clean data frame for display
+break_table <- data.frame(
+  Break_Date = as.numeric(bd), 
+  Date_Label = as.Date(date_decimal(as.numeric(bd)))
+)
+
+# Visualize the breaks
+plot(bp)
+plot(ts_data, main = "EXPCA Series with Structural Breaks (2010-2025)")
+lines(bp, col = "red", lwd = 2)
+
+# Print aesthetic table instead of raw summary
+knitr::kable(break_table, caption = "Identified Structural Breakpoints")
+```
+
+The Bai-Perron test confirms that even when restricting the analysis to the post-2010 period, the trade series is not static. The test identifies significant breakpoints at 2012(4), 2014(12), 2017(4), and most critically, 2021(9).\
+
+The break at September 2021 is particularly relevant as it marks the transition from the immediate COVID shock to the recovery phase. This validates our modeling strategy I wanted to apply while the long-term trend is useful, the structural shifts mean we must account for the specific volatility of the COVID era to avoid distorting our future predictions.
+
+
+### Step 3.2
+
+COVID Binary Variable\
+
+We create a dummy variable. We assumed that the primary COVID shock on trade logistics lasted from March 2020 through December 2021, encompassing border restrictions and initial supply chain crunches.\
+
+
+```{r}
+time_index <- time(ts_data)
+
+# Define the COVID window (March 2020 to Dec 2021)
+covid_start <- 2020 + (2/12) 
+covid_end   <- 2021 + (11/12)
+
+# Create the binary (1 during COVID shock, 0 otherwise)
+covid_dummy <- ifelse(time_index >= covid_start & time_index <= covid_end, 1, 0)
+
+# Bind for visual check
+reg_data <- data.frame(Exports = as.numeric(ts_data), 
+                       Covid = covid_dummy)
+
+```
+
+### Step 3.3
+
+We compare two regression specifications:\
+
+- **Model A (Standard):** Exports ~ Trend + Season
+
+- **Model B (Shock-Adjusted):** Exports ~ Trend + Season + CovidDummy
+
+Validation Strategy (Rolling Origin):\
+
+To ensure the model predicts "unseen" future data accurately, we used a rolling origin cross-validation strategy:
+
+- **Fold 1:** Train (Jan 2010 – Dec 2022), Validate on 2023 (12 months).
+
+- **Fold 2:** Train (Jan 2010 – Dec 2023), Validate on 2024 (12 months).
+
+
+```{r}
+# Function to evaluate performance
+evaluate_fold <- function(train_ts, valid_ts, train_dum, valid_dum, fold_id) {
+  
+  # Model A: No Dummy
+  modA <- tslm(train_ts ~ trend + season)
+  fcA  <- forecast(modA, h=length(valid_ts))
+  accA <- accuracy(fcA, valid_ts)
+  
+  # Model B: With COVID Dummy
+  modB <- tslm(train_ts ~ trend + season + train_dum)
+  fcB  <- forecast(modB, h=length(valid_ts), newdata=data.frame(train_dum=valid_dum))
+  accB <- accuracy(fcB, valid_ts)
+  
+  return(rbind(
+    data.frame(Model="No Dummy", Fold=fold_id, RMSE=accA[2,"RMSE"], MAPE=accA[2,"MAPE"]),
+    data.frame(Model="With Dummy", Fold=fold_id, RMSE=accB[2,"RMSE"], MAPE=accB[2,"MAPE"])
+  ))
+}
+
+# --- Fold 1 (Validate 2023) ---
+train1 <- window(ts_data, end = c(2022, 12))
+valid1 <- window(ts_data, start = c(2023, 1), end = c(2023, 12))
+dum_train1 <- window(ts(covid_dummy, start=start(ts_data), frequency=12), end = c(2022, 12))
+dum_valid1 <- window(ts(covid_dummy, start=start(ts_data), frequency=12), start = c(2023, 1), end = c(2023, 12))
+
+# --- Fold 2 (Validate 2024) ---
+train2 <- window(ts_data, end = c(2023, 12))
+valid2 <- window(ts_data, start = c(2024, 1), end = c(2024, 12))
+dum_train2 <- window(ts(covid_dummy, start=start(ts_data), frequency=12), end = c(2023, 12))
+dum_valid2 <- window(ts(covid_dummy, start=start(ts_data), frequency=12), start = c(2024, 1), end = c(2024, 12))
+
+# Run Evaluation
+res1 <- evaluate_fold(train1, valid1, dum_train1, dum_valid1, 1)
+res2 <- evaluate_fold(train2, valid2, dum_train2, dum_valid2, 2)
+cv_results <- rbind(res1, res2)
+
+# Display Results
+knitr::kable(cv_results, caption = "Cross Validation Results")
+
+# Averages
+avg_results <- cv_results %>% 
+  group_by(Model) %>% 
+  summarise(Avg_RMSE = mean(RMSE), Avg_MAPE = mean(MAPE))
+
+knitr::kable(avg_results, caption = "Average Performance across Folds")
+```
+
+
+We evaluated the model's performance by forecasting "unseen" data for 2023 and 2024. The results revealed a significant divergence between the two approaches:
+
+- **Model A (No Dummy):** Produced an Average RMSE of 2653.36 and an Average MAPE of 8.55%.
+- **Model B (With Dummy):** Produced a significantly lower Average RMSE of 1522.75 and an Average MAPE of 4.50%.
+
+Unlike the initial hypothesis, the "With Dummy" model performed drastically better in the cross-validation. This indicates that the COVID-19 shock (2020–2021) was not just a temporary noise event but a structural distortion that still impacts how the model reads the trend. By explicitly accounting for the shock with a dummy variable, the regression model could more accurately predict the stable behavior of 2023 and 2024.
+
+### Step 3.4
+
+Final Regression Forecast, Aug - Dec 2025\
+
+We refit the best-performing model on the entire dataset (1990 – Aug 2025) and forecast the next 6 months.\
+
+```{r}
+# Define Future Dummy (Sept 2025 - Feb 2026) -> All Zeros (No Covid)
+future_dummy <- data.frame(covid_dummy = rep(0, 6))
+
+# Refit Model (Defaulting to No Dummy as per your text)
+final_reg_model <- tslm(ts_data ~ trend + season)
+reg_forecast <- forecast(final_reg_model, h=6)
+
+# Extract Coefficients Table
+coef_matrix <- summary(final_reg_model)$coefficients
+knitr::kable(coef_matrix, digits = 3, caption = "Regression Model Coefficients")
+
+# Extract Model Fit Statistics (R-squared, etc.)
+fit_stats <- data.frame(
+  Metric = c("Residual SE", "Multiple R-squared", "Adjusted R-squared", "F-statistic"),
+  Value = c(summary(final_reg_model)$sigma,
+            summary(final_reg_model)$r.squared,
+            summary(final_reg_model)$adj.r.squared,
+            summary(final_reg_model)$fstatistic[1])
+)
+knitr::kable(fit_stats, digits = 3, caption = "Model Fit Statistics")
+
+
+
+# Forecast Table & Plot
+dates_future <- seq(as.Date("2025-09-01"), by="month", length.out=6)
+knitr::kable(data.frame(Date=dates_future, Forecast=reg_forecast$mean), caption = "Regression Forecast Values")
+
+plot(reg_forecast, main="Regression Forecast (2010 Baseline): Next 6 Months")
+
+```
+
+
+
+The final regression model (using the 2010–2025 baseline) projects a robust continuation of trade growth.
+- **Trend:** The model estimates a monthly growth trend of $34.66 Million (p < 0.001).
+- **Seasonality:** There is a strong seasonal peak in March (+4305M) and October (+3143M), with significant dips in the winter months.
+- **Forecast:** Driven by this positive trend, the regression model predicts exports will hover around 28,500M in September 2025 and dip slightly to 26,332M by January 2026. This represents an optimistic outlook, assuming the long-term growth trajectory remains.
+
+
+
+# Modeling with Smoothing Approach
+
+### Step 4.1: Period Selection\
+
+
+Even with our shorter 2010 baseline, the COVID shock (2020) is a massive distortion for smoothing weights. We continue to use the Post-COVID Recovery Period (Jan 2022 – Aug 2025) to ensure the model is hyper-focused on the "New Normal."\
+
+
+```{r}
+# Subset data: Jan 2022 to current
+ts_smooth <- window(ts_data, start = c(2022, 1))
+
+plot(ts_smooth, main = "Data Subset for Smoothing (Post-2022)")
+```
+
+Interpretation
+
+
+### Step 4.2: Exponential Smoothing
+
+We allow ets() to automatically select the best Error, Trend, and Seasonality components (Additive vs. Multiplicative) based on AICc minimization.\
+
+
+```{r}
+# Fit ETS model on the subset
+ets_model <- ets(ts_smooth, model = "ZZZ")
+
+# Gemini Assisted code for aestethics 
+# 1. Extract Key Model Metrics
+# We combine Model Type, Fit Stats (AICc), and Smoothing Parameters into one table
+summary_stats <- data.frame(
+  Metric = c("Model Type", "AICc", "BIC"),
+  Value = c(ets_model$method, 
+            round(ets_model$aicc, 2), 
+            round(ets_model$bic, 2))
+)
+
+smooth_params <- ets_model$par[names(ets_model$par) %in% c("alpha", "beta", "gamma", "phi")]
+params_df <- data.frame(
+  Metric = paste("Parameter:", names(smooth_params)),
+  Value = as.character(round(smooth_params, 4))
+)
+
+# Combine and Display as a Single Clean Table
+final_summary <- rbind(summary_stats, params_df)
+knitr::kable(final_summary, caption = "ETS Model Specification")
+
+# Display Accuracy as a formatted table
+ets_acc <- accuracy(ets_model)
+knitr::kable(ets_acc, digits = 3, caption = "ETS Model Accuracy (Training Set)")
+```
+
+When restricting the view to the post-COVID recovery period (2022–2025), the ets() algorithm selected an ETS(M,N,M) model.
+
+- Error (M): Multiplicative, appropriate for the high-variance data.
+
+- Trend (N): None. This is the critical differentiator. While the regression model sees a 15-year upward trend, the smoothing model looks at the last 3 years and sees no consistent growth. It interprets the recent high export values as a plateau rather than a climb.
+
+- Seasonality (M): Multiplicative seasonality remains a strong driver.
+
+The model's Alpha (0.36) indicates it is moderately responsive to new data, quickly adapting its baseline without reacting wildly to every single month's fluctuation.\
+
+
+
+### Step 4.3: Final Smoothing Forecast, Aug - Dec 2025
+
+
+```{r}
+# Forecast next 6 months
+smooth_forecast <- forecast(ets_model, h=6)
+
+# Table
+knitr::kable(data.frame(Date=dates_future, Forecast=smooth_forecast$mean))
+
+# Plot
+autoplot(smooth_forecast) +
+  labs(title = "ETS Forecast: Sept 2025 - Feb 2026") +
+  theme_minimal()
+```
+
+Reflecting its "No Trend" diagnosis, the ETS forecast is notably more conservative than the Regression model. It predicts exports will start at 27,236M in September 2025 and decline to 25,488M by December. This forecast assumes the market has stabilized at current levels rather than continuing to grow indefinitely.\
+
+
+# 5. Evaluation & Conclusion
+
+```{r}
+# 1. Extract Regression Metrics from your previous 'avg_results' table
+# We filter for the specific row and pull the column value
+reg_nodummy_rmse <- round(avg_results$Avg_RMSE[avg_results$Model == "No Dummy"], 0)
+reg_nodummy_mape <- paste0(round(avg_results$Avg_MAPE[avg_results$Model == "No Dummy"], 2), "%")
+
+reg_dummy_rmse <- round(avg_results$Avg_RMSE[avg_results$Model == "With Dummy"], 0)
+reg_dummy_mape <- paste0(round(avg_results$Avg_MAPE[avg_results$Model == "With Dummy"], 2), "%")
+
+# 2. Extract ETS Metrics from the model object
+# accuracy() returns a matrix; we grab the Training set row
+ets_rmse_val <- round(accuracy(ets_model)[,"RMSE"], 0)
+ets_rmse_str <- paste0(ets_rmse_val, " (In-Sample)")
+
+ets_mape_val <- round(accuracy(ets_model)[,"MAPE"], 2)
+ets_mape_str <- paste0(ets_mape_val, "%")
+
+# 3. Build the Data Frame dynamically
+summary_table <- data.frame(
+  Model = c("Regression (No Dummy)", "Regression (With Dummy)", "ETS (Smoothing)"),
+  Trend = c("Linear", "Linear", "None"),
+  Seasonality = c("Additive", "Additive", "Multiplicative"),
+  RMSE = c(reg_nodummy_rmse, reg_dummy_rmse, ets_rmse_str),
+  MAPE = c(reg_nodummy_mape, reg_dummy_mape, ets_mape_str),
+  Notes = c("Underfits COVID shock", "Best CV Accuracy", "Most conservative; Best for risk-avoidance")
+)
+
+# 4. Display
+knitr::kable(summary_table, caption = "Performance Metrics Comparison")
+
+#Code assisted by Gemini AI
+```
+
+
+**Selected Method: Exponential Smoothing (ETS)**\
+
+We compared two distinct narratives:\
+
+- **Regression (Optimistic):** Predicts continued growth based on a 15-year trend (Avg Forecast ~$28B).\
+
+- **ETS (Conservative):** Predicts a stable/declining plateau based on recent stagnation (Avg Forecast ~$26.5B).\
+
+
+**Metrics:** The Regression model (With Dummy) achieved a validation MAPE of 4.50%. The ETS model achieved an in-sample MAPE of 2.77%. Both models are statistically valid.\
+
+Rationale:
+
+- **Risk Profile:** The client (U.S. Manufacturer) specifically flagged overstocking as a critical risk. The Regression model is optimistic, if we follow it and demand stays flat, we will overproduce by ~$2B. The ETS model is conservative since it protects against overstocking.
+
+- **Recency:** The ETS model's "No Trend" finding accurately reflects the visible stagnation in the data since 2022, making it the safer bet for immediate planning.
+
+
+# 6. Deployment
+Business Guidance for the U.S. Manufacturer:
+
+1. **Inventory Strategy (Conservative Baseline):** Prepare for a softening in demand. The forecast predicts volume will contract from 27.3B in October down to 24.6B in January 2026. Align raw material purchases to this lower baseline to avoid carrying excess inventory into the new year.
+
+2. **Handling the Temporary Blip:** While the model interprets recent dips as a plateau, we acknowledge the potential for a rebound. To balance the conservative forecast against the risk of stock outs:
+
+- Maintain Capacity: Do not reduce workforce or trucking contracts permanently.
+
+- Safety Stock: Implement a 10% Safety Stock buffer which is a approx. $2.5B inventory equivalent. This allows you to fulfill orders if demand surprises to the upside (towards the Regression forecast) without committing to full-scale overproduction.
+
+3. **Logistics Execution:** October 2025 is projected to be the peak month ($27.35B). Secure freight capacity for this specific month immediately. Also, plan for reduced shipping volume in January/February 2026, allowing for maintenance downtime or lower spot-market spending.
+
+# 7. References
+
+**Data Source:** U.S. Census Bureau. (2025). *U.S. Exports to Canada (EXPCA)* [Data set]. Federal Reserve Bank of St. Louis (FRED). Retrieved from https://fred.stlouisfed.org/series/EXPCA. [cite_start]**Accessed on: December 7, 2025.** [cite: 320, 321]
+
+**AI Assistance:**\
+
+**Gemini** (December 2025 version) [Large Language Model]. Retrieved from https://gemini.google.com\
+
+OpenAI. (2025). **ChatGPT** (GPT-3.5) [Large language model]. Retrieved from https://chat.openai.com\
+
+```{r, echo=FALSE, results='asis'}
+
+library(flextable)
+library(dplyr)
+# 1. Get R Version
+cite.version <- R.Version()
+pip <- as.character(cite.version$version.string)
+
+# 2. Get Package List dynamically
+pkg_list <- names(sessionInfo()$otherPkgs)
+pkg_versions <- sapply(pkg_list, function(x) as.character(packageVersion(x)))
+
+# 3. Create Dataframe
+pkg_df <- data.frame(
+  Package = pkg_list,
+  Version = pkg_versions
+)
+
+# 4. Render as Flextable (Professional Look)
+cat("\n**Software and Libraries**\n")
+cat(paste("Analysis performed using:", pip, "\n\n"))
+
+pkg_df %>%
+  arrange(Package) %>% # Sort alphabetically
+  flextable() %>%
+  set_header_labels(Package = "R Package", Version = "Version") %>%
+  theme_vanilla() %>%
+  autofit() %>%
+  set_caption("Table 6: R Packages Used for Analysis")
+
+```
+

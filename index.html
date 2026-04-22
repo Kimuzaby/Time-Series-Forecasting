@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.553">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Erick Xavier Maldonado">
+
+<title>Time-Series Forecasting U.S. Exports to Canada</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="index_files/libs/clipboard/clipboard.min.js"></script>
+<script src="index_files/libs/quarto-html/quarto.js"></script>
+<script src="index_files/libs/quarto-html/popper.min.js"></script>
+<script src="index_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="index_files/libs/quarto-html/anchor.min.js"></script>
+<link href="index_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="index_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="index_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="index_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="index_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<link href="index_files/libs/tabwid-1.1.3/tabwid.css" rel="stylesheet">
+
+<script src="index_files/libs/tabwid-1.1.3/tabwid.js"></script>
+
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#business-understanding" id="toc-business-understanding" class="nav-link active" data-scroll-target="#business-understanding">1. Business Understanding</a></li>
+  <li><a href="#data-understanding-and-preparation" id="toc-data-understanding-and-preparation" class="nav-link" data-scroll-target="#data-understanding-and-preparation">2. Data Understanding and Preparation</a></li>
+  <li><a href="#modeling-with-regression-approach" id="toc-modeling-with-regression-approach" class="nav-link" data-scroll-target="#modeling-with-regression-approach">3. Modeling with Regression Approach</a>
+  <ul class="collapse">
+  <li><a href="#step-3.1" id="toc-step-3.1" class="nav-link" data-scroll-target="#step-3.1">Step 3.1</a></li>
+  <li><a href="#step-3.2" id="toc-step-3.2" class="nav-link" data-scroll-target="#step-3.2">Step 3.2</a></li>
+  <li><a href="#step-3.3" id="toc-step-3.3" class="nav-link" data-scroll-target="#step-3.3">Step 3.3</a></li>
+  <li><a href="#step-3.4" id="toc-step-3.4" class="nav-link" data-scroll-target="#step-3.4">Step 3.4</a></li>
+  </ul></li>
+  <li><a href="#modeling-with-smoothing-approach" id="toc-modeling-with-smoothing-approach" class="nav-link" data-scroll-target="#modeling-with-smoothing-approach">Modeling with Smoothing Approach</a>
+  <ul class="collapse">
+  <li><a href="#step-4.1-period-selection" id="toc-step-4.1-period-selection" class="nav-link" data-scroll-target="#step-4.1-period-selection">Step 4.1: Period Selection<br>
+  </a></li>
+  <li><a href="#step-4.2-exponential-smoothing" id="toc-step-4.2-exponential-smoothing" class="nav-link" data-scroll-target="#step-4.2-exponential-smoothing">Step 4.2: Exponential Smoothing</a></li>
+  <li><a href="#step-4.3-final-smoothing-forecast-aug---dec-2025" id="toc-step-4.3-final-smoothing-forecast-aug---dec-2025" class="nav-link" data-scroll-target="#step-4.3-final-smoothing-forecast-aug---dec-2025">Step 4.3: Final Smoothing Forecast, Aug - Dec 2025</a></li>
+  </ul></li>
+  <li><a href="#evaluation-conclusion" id="toc-evaluation-conclusion" class="nav-link" data-scroll-target="#evaluation-conclusion">5. Evaluation &amp; Conclusion</a></li>
+  <li><a href="#deployment" id="toc-deployment" class="nav-link" data-scroll-target="#deployment">6. Deployment</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">7. References</a></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Time-Series Forecasting U.S. Exports to Canada</h1>
+<p class="subtitle lead">Prediction of Trade Volume</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Erick Xavier Maldonado </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="business-understanding" class="level1">
+<h1>1. Business Understanding</h1>
+<p>The client is a large U.S. Manufacturing firm that exports a significant volume of goods to Canada. The firm faces challenges in supply chain planning due to fluctuations in international demand. Accurate forecasting of export volumes is critical for:</p>
+<ul>
+<li><p><strong>Inventory Management:</strong> Ensuring raw materials are available to meet production schedules without overstocking.</p></li>
+<li><p><strong>Logistics Planning:</strong> Securing freight capacity (trucking/rail) in advance to avoid spot-market premiums.</p></li>
+</ul>
+<p><strong>Objective:</strong> The goal is to forecast the value of U.S. Exports to Canada (EXPCA) for the upcoming 6 months (Sept 2025 – Feb 2026).</p>
+<p><strong>Research Questions:</strong> To guide this analysis, I propose the following research questions:</p>
+<ul>
+<li><p>To what extent does the inclusion of a structural break variable, representing the COVID-19 shock, improve the predictive accuracy of linear regression models for U.S.-Canada trade?</p></li>
+<li><p>Does a short-term exponential smoothing model (focused on the post-2022 recovery) provide a more risk-averse forecast for inventory management compared to a long-term trend regression?</p></li>
+</ul>
+<p><strong>Methodology:</strong> I have restricted our analysis to the Post-Financial Crisis era (2010–2025). This excludes the structural volatility of the pre-2008 economy, ensuring the model’s trends reflect modern supply chain dynamics. I will compare:</p>
+<ul>
+<li><p><strong>Regression Analysis:</strong> Incorporating trend, seasonality, and a dummy variable to account for the COVID-19 structural shock.</p></li>
+<li><p><strong>Exponential Smoothing (ETS):</strong> Focusing on the post-shock recovery period to capture the most recent market dynamics.</p></li>
+</ul>
+<p>The model with the lowest error (RMSE/MAPE) and highest stability will be selected for deployment.</p>
+</section>
+<section id="data-understanding-and-preparation" class="level1">
+<h1>2. Data Understanding and Preparation</h1>
+<p>We utilize the <strong>EXPCA</strong> dataset, representing Monthly U.S. Exports to Canada (Nominal Millions of Dollars), Not Seasonally Adjusted.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>First 6 Rows of Data</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">observation_date</th>
+<th style="text-align: right;">EXPCA</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">2010-01-01</td>
+<td style="text-align: right;">17238.67</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2010-02-01</td>
+<td style="text-align: right;">18545.03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2010-03-01</td>
+<td style="text-align: right;">22189.19</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2010-04-01</td>
+<td style="text-align: right;">20970.20</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2010-05-01</td>
+<td style="text-align: right;">21371.31</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2010-06-01</td>
+<td style="text-align: right;">22275.22</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Last 6 Rows of Data</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">observation_date</th>
+<th style="text-align: right;">EXPCA</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">2025-03-01</td>
+<td style="text-align: right;">32195.03</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2025-04-01</td>
+<td style="text-align: right;">27708.60</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2025-05-01</td>
+<td style="text-align: right;">28111.53</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2025-06-01</td>
+<td style="text-align: right;">28676.26</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2025-07-01</td>
+<td style="text-align: right;">26167.58</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2025-08-01</td>
+<td style="text-align: right;">27186.37</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Total Missing Values: 0 </code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-2-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-2-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Observation: The time series shows a strong upward trend over the decades, confirming the growth of trade relations. There is distinct seasonality, likely dipping in winter months and peaking in spring/fall. Major structural breaks are visible, most notably the 2008 Financial Crisis and the sharp drop/volatility during COVID-19 in 2020.<br>
+</p>
+<p>The data contains 0 missing values, ensuring a complete time series. The histogram shows a slightly bimodal distribution, reflecting the shift from lower trade volumes in 2010 to higher volumes post-2021. The boxplot reveals no extreme statistical outliers that would require removal, though the volatility of 2020 is visible.<br>
+</p>
+</section>
+<section id="modeling-with-regression-approach" class="level1">
+<h1>3. Modeling with Regression Approach</h1>
+<section id="step-3.1" class="level3">
+<h3 class="anchored" data-anchor-id="step-3.1">Step 3.1</h3>
+<p>Structural Break Analysis<br>
+</p>
+<p>We analyze the series for structural breaks to confirm the impact of COVID-19. However, per client instructions, we will retain the pre-COVID history and instead manage the disruption using an exogenous variable.<br>
+</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-3-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Identified Structural Breakpoints</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Break_Date</th>
+<th style="text-align: left;">Date_Label</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">2012.250</td>
+<td style="text-align: left;">2012-04-01</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">2014.917</td>
+<td style="text-align: left;">2014-12-01</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2021.667</td>
+<td style="text-align: left;">2021-09-01</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The Bai-Perron test confirms that even when restricting the analysis to the post-2010 period, the trade series is not static. The test identifies significant breakpoints at 2012(4), 2014(12), 2017(4), and most critically, 2021(9).<br>
+</p>
+<p>The break at September 2021 is particularly relevant as it marks the transition from the immediate COVID shock to the recovery phase. This validates our modeling strategy I wanted to apply while the long-term trend is useful, the structural shifts mean we must account for the specific volatility of the COVID era to avoid distorting our future predictions.</p>
+</section>
+<section id="step-3.2" class="level3">
+<h3 class="anchored" data-anchor-id="step-3.2">Step 3.2</h3>
+<p>COVID Binary Variable<br>
+</p>
+<p>We create a dummy variable. We assumed that the primary COVID shock on trade logistics lasted from March 2020 through December 2021, encompassing border restrictions and initial supply chain crunches.<br>
+</p>
+</section>
+<section id="step-3.3" class="level3">
+<h3 class="anchored" data-anchor-id="step-3.3">Step 3.3</h3>
+<p>We compare two regression specifications:<br>
+</p>
+<ul>
+<li><p><strong>Model A (Standard):</strong> Exports ~ Trend + Season</p></li>
+<li><p><strong>Model B (Shock-Adjusted):</strong> Exports ~ Trend + Season + CovidDummy</p></li>
+</ul>
+<p>Validation Strategy (Rolling Origin):<br>
+</p>
+<p>To ensure the model predicts “unseen” future data accurately, we used a rolling origin cross-validation strategy:</p>
+<ul>
+<li><p><strong>Fold 1:</strong> Train (Jan 2010 – Dec 2022), Validate on 2023 (12 months).</p></li>
+<li><p><strong>Fold 2:</strong> Train (Jan 2010 – Dec 2023), Validate on 2024 (12 months).</p></li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Cross Validation Results</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">Fold</th>
+<th style="text-align: right;">RMSE</th>
+<th style="text-align: right;">MAPE</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">No Dummy</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3408.8670</td>
+<td style="text-align: right;">11.224868</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">With Dummy</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2109.4489</td>
+<td style="text-align: right;">6.615948</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">No Dummy</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1897.8561</td>
+<td style="text-align: right;">5.873641</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">With Dummy</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">936.0612</td>
+<td style="text-align: right;">2.377159</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Average Performance across Folds</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">Avg_RMSE</th>
+<th style="text-align: right;">Avg_MAPE</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">No Dummy</td>
+<td style="text-align: right;">2653.362</td>
+<td style="text-align: right;">8.549255</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">With Dummy</td>
+<td style="text-align: right;">1522.755</td>
+<td style="text-align: right;">4.496554</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>We evaluated the model’s performance by forecasting “unseen” data for 2023 and 2024. The results revealed a significant divergence between the two approaches:</p>
+<ul>
+<li><strong>Model A (No Dummy):</strong> Produced an Average RMSE of 2653.36 and an Average MAPE of 8.55%.</li>
+<li><strong>Model B (With Dummy):</strong> Produced a significantly lower Average RMSE of 1522.75 and an Average MAPE of 4.50%.</li>
+</ul>
+<p>Unlike the initial hypothesis, the “With Dummy” model performed drastically better in the cross-validation. This indicates that the COVID-19 shock (2020–2021) was not just a temporary noise event but a structural distortion that still impacts how the model reads the trend. By explicitly accounting for the shock with a dummy variable, the regression model could more accurately predict the stable behavior of 2023 and 2024.</p>
+</section>
+<section id="step-3.4" class="level3">
+<h3 class="anchored" data-anchor-id="step-3.4">Step 3.4</h3>
+<p>Final Regression Forecast, Aug - Dec 2025<br>
+</p>
+<p>We refit the best-performing model on the entire dataset (1990 – Aug 2025) and forecast the next 6 months.<br>
+</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Regression Model Coefficients</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Estimate</th>
+<th style="text-align: right;">Std. Error</th>
+<th style="text-align: right;">t value</th>
+<th style="text-align: right;">Pr(&gt;|t|)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">19642.915</td>
+<td style="text-align: right;">670.862</td>
+<td style="text-align: right;">29.280</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">trend</td>
+<td style="text-align: right;">34.659</td>
+<td style="text-align: right;">3.241</td>
+<td style="text-align: right;">10.693</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">season2</td>
+<td style="text-align: right;">613.441</td>
+<td style="text-align: right;">852.135</td>
+<td style="text-align: right;">0.720</td>
+<td style="text-align: right;">0.473</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">season3</td>
+<td style="text-align: right;">4305.852</td>
+<td style="text-align: right;">852.153</td>
+<td style="text-align: right;">5.053</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">season4</td>
+<td style="text-align: right;">2268.710</td>
+<td style="text-align: right;">852.184</td>
+<td style="text-align: right;">2.662</td>
+<td style="text-align: right;">0.008</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">season5</td>
+<td style="text-align: right;">2840.572</td>
+<td style="text-align: right;">852.227</td>
+<td style="text-align: right;">3.333</td>
+<td style="text-align: right;">0.001</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">season6</td>
+<td style="text-align: right;">3350.017</td>
+<td style="text-align: right;">852.282</td>
+<td style="text-align: right;">3.931</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">season7</td>
+<td style="text-align: right;">1182.153</td>
+<td style="text-align: right;">852.350</td>
+<td style="text-align: right;">1.387</td>
+<td style="text-align: right;">0.167</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">season8</td>
+<td style="text-align: right;">2841.533</td>
+<td style="text-align: right;">852.430</td>
+<td style="text-align: right;">3.333</td>
+<td style="text-align: right;">0.001</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">season9</td>
+<td style="text-align: right;">2340.950</td>
+<td style="text-align: right;">866.238</td>
+<td style="text-align: right;">2.702</td>
+<td style="text-align: right;">0.008</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">season10</td>
+<td style="text-align: right;">3143.886</td>
+<td style="text-align: right;">866.269</td>
+<td style="text-align: right;">3.629</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">season11</td>
+<td style="text-align: right;">2068.073</td>
+<td style="text-align: right;">866.311</td>
+<td style="text-align: right;">2.387</td>
+<td style="text-align: right;">0.018</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">season12</td>
+<td style="text-align: right;">946.188</td>
+<td style="text-align: right;">866.366</td>
+<td style="text-align: right;">1.092</td>
+<td style="text-align: right;">0.276</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Model Fit Statistics</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Metric</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Residual SE</td>
+<td style="text-align: right;">2410.183</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Multiple R-squared</td>
+<td style="text-align: right;">0.483</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Adjusted R-squared</td>
+<td style="text-align: right;">0.448</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">F-statistic</td>
+<td style="text-align: right;">13.636</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Regression Forecast Values</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Date</th>
+<th style="text-align: right;">Forecast</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">2025-09-01</td>
+<td style="text-align: right;">28534.43</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2025-10-01</td>
+<td style="text-align: right;">29372.03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2025-11-01</td>
+<td style="text-align: right;">28330.87</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2025-12-01</td>
+<td style="text-align: right;">27243.65</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2026-01-01</td>
+<td style="text-align: right;">26332.12</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2026-02-01</td>
+<td style="text-align: right;">26980.22</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The final regression model (using the 2010–2025 baseline) projects a robust continuation of trade growth. - <strong>Trend:</strong> The model estimates a monthly growth trend of $34.66 Million (p &lt; 0.001). - <strong>Seasonality:</strong> There is a strong seasonal peak in March (+4305M) and October (+3143M), with significant dips in the winter months. - <strong>Forecast:</strong> Driven by this positive trend, the regression model predicts exports will hover around 28,500M in September 2025 and dip slightly to 26,332M by January 2026. This represents an optimistic outlook, assuming the long-term growth trajectory remains.</p>
+</section>
+</section>
+<section id="modeling-with-smoothing-approach" class="level1">
+<h1>Modeling with Smoothing Approach</h1>
+<section id="step-4.1-period-selection" class="level3">
+<h3 class="anchored" data-anchor-id="step-4.1-period-selection">Step 4.1: Period Selection<br>
+</h3>
+<p>Even with our shorter 2010 baseline, the COVID shock (2020) is a massive distortion for smoothing weights. We continue to use the Post-COVID Recovery Period (Jan 2022 – Aug 2025) to ensure the model is hyper-focused on the “New Normal.”<br>
+</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Interpretation</p>
+</section>
+<section id="step-4.2-exponential-smoothing" class="level3">
+<h3 class="anchored" data-anchor-id="step-4.2-exponential-smoothing">Step 4.2: Exponential Smoothing</h3>
+<p>We allow ets() to automatically select the best Error, Trend, and Seasonality components (Additive vs.&nbsp;Multiplicative) based on AICc minimization.<br>
+</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>ETS Model Specification</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Metric</th>
+<th style="text-align: left;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Model Type</td>
+<td style="text-align: left;">ETS(M,N,M)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AICc</td>
+<td style="text-align: left;">822.44</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BIC</td>
+<td style="text-align: left;">832.06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Parameter: alpha</td>
+<td style="text-align: left;">0.3636</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Parameter: gamma</td>
+<td style="text-align: left;">0.0002</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>ETS Model Accuracy (Training Set)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">ME</th>
+<th style="text-align: right;">RMSE</th>
+<th style="text-align: right;">MAE</th>
+<th style="text-align: right;">MPE</th>
+<th style="text-align: right;">MAPE</th>
+<th style="text-align: right;">MASE</th>
+<th style="text-align: right;">ACF1</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Training set</td>
+<td style="text-align: right;">-164.804</td>
+<td style="text-align: right;">1017.207</td>
+<td style="text-align: right;">806.88</td>
+<td style="text-align: right;">-0.683</td>
+<td style="text-align: right;">2.775</td>
+<td style="text-align: right;">0.664</td>
+<td style="text-align: right;">0.222</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>When restricting the view to the post-COVID recovery period (2022–2025), the ets() algorithm selected an ETS(M,N,M) model.</p>
+<ul>
+<li><p>Error (M): Multiplicative, appropriate for the high-variance data.</p></li>
+<li><p>Trend (N): None. This is the critical differentiator. While the regression model sees a 15-year upward trend, the smoothing model looks at the last 3 years and sees no consistent growth. It interprets the recent high export values as a plateau rather than a climb.</p></li>
+<li><p>Seasonality (M): Multiplicative seasonality remains a strong driver.</p></li>
+</ul>
+<p>The model’s Alpha (0.36) indicates it is moderately responsive to new data, quickly adapting its baseline without reacting wildly to every single month’s fluctuation.<br>
+</p>
+</section>
+<section id="step-4.3-final-smoothing-forecast-aug---dec-2025" class="level3">
+<h3 class="anchored" data-anchor-id="step-4.3-final-smoothing-forecast-aug---dec-2025">Step 4.3: Final Smoothing Forecast, Aug - Dec 2025</h3>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Date</th>
+<th style="text-align: right;">Forecast</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">2025-09-01</td>
+<td style="text-align: right;">27236.21</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2025-10-01</td>
+<td style="text-align: right;">27351.48</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2025-11-01</td>
+<td style="text-align: right;">26505.19</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2025-12-01</td>
+<td style="text-align: right;">25488.42</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2026-01-01</td>
+<td style="text-align: right;">24664.27</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2026-02-01</td>
+<td style="text-align: right;">25152.79</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Reflecting its “No Trend” diagnosis, the ETS forecast is notably more conservative than the Regression model. It predicts exports will start at 27,236M in September 2025 and decline to 25,488M by December. This forecast assumes the market has stabilized at current levels rather than continuing to grow indefinitely.<br>
+</p>
+</section>
+</section>
+<section id="evaluation-conclusion" class="level1">
+<h1>5. Evaluation &amp; Conclusion</h1>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Performance Metrics Comparison</caption>
+<colgroup>
+<col style="width: 21%">
+<col style="width: 6%">
+<col style="width: 13%">
+<col style="width: 15%">
+<col style="width: 5%">
+<col style="width: 38%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Model</th>
+<th style="text-align: left;">Trend</th>
+<th style="text-align: left;">Seasonality</th>
+<th style="text-align: left;">RMSE</th>
+<th style="text-align: left;">MAPE</th>
+<th style="text-align: left;">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Regression (No Dummy)</td>
+<td style="text-align: left;">Linear</td>
+<td style="text-align: left;">Additive</td>
+<td style="text-align: left;">2653</td>
+<td style="text-align: left;">8.55%</td>
+<td style="text-align: left;">Underfits COVID shock</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Regression (With Dummy)</td>
+<td style="text-align: left;">Linear</td>
+<td style="text-align: left;">Additive</td>
+<td style="text-align: left;">1523</td>
+<td style="text-align: left;">4.5%</td>
+<td style="text-align: left;">Best CV Accuracy</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ETS (Smoothing)</td>
+<td style="text-align: left;">None</td>
+<td style="text-align: left;">Multiplicative</td>
+<td style="text-align: left;">1017 (In-Sample)</td>
+<td style="text-align: left;">2.77%</td>
+<td style="text-align: left;">Most conservative; Best for risk-avoidance</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p><strong>Selected Method: Exponential Smoothing (ETS)</strong><br>
+</p>
+<p>We compared two distinct narratives:<br>
+</p>
+<ul>
+<li><p><strong>Regression (Optimistic):</strong> Predicts continued growth based on a 15-year trend (Avg Forecast ~$28B).<br>
+</p></li>
+<li><p><strong>ETS (Conservative):</strong> Predicts a stable/declining plateau based on recent stagnation (Avg Forecast ~$26.5B).<br>
+</p></li>
+</ul>
+<p><strong>Metrics:</strong> The Regression model (With Dummy) achieved a validation MAPE of 4.50%. The ETS model achieved an in-sample MAPE of 2.77%. Both models are statistically valid.<br>
+</p>
+<p>Rationale:</p>
+<ul>
+<li><p><strong>Risk Profile:</strong> The client (U.S. Manufacturer) specifically flagged overstocking as a critical risk. The Regression model is optimistic, if we follow it and demand stays flat, we will overproduce by ~$2B. The ETS model is conservative since it protects against overstocking.</p></li>
+<li><p><strong>Recency:</strong> The ETS model’s “No Trend” finding accurately reflects the visible stagnation in the data since 2022, making it the safer bet for immediate planning.</p></li>
+</ul>
+</section>
+<section id="deployment" class="level1">
+<h1>6. Deployment</h1>
+<p>Business Guidance for the U.S. Manufacturer:</p>
+<ol type="1">
+<li><p><strong>Inventory Strategy (Conservative Baseline):</strong> Prepare for a softening in demand. The forecast predicts volume will contract from 27.3B in October down to 24.6B in January 2026. Align raw material purchases to this lower baseline to avoid carrying excess inventory into the new year.</p></li>
+<li><p><strong>Handling the Temporary Blip:</strong> While the model interprets recent dips as a plateau, we acknowledge the potential for a rebound. To balance the conservative forecast against the risk of stock outs:</p></li>
+</ol>
+<ul>
+<li><p>Maintain Capacity: Do not reduce workforce or trucking contracts permanently.</p></li>
+<li><p>Safety Stock: Implement a 10% Safety Stock buffer which is a approx. $2.5B inventory equivalent. This allows you to fulfill orders if demand surprises to the upside (towards the Regression forecast) without committing to full-scale overproduction.</p></li>
+</ul>
+<ol start="3" type="1">
+<li><strong>Logistics Execution:</strong> October 2025 is projected to be the peak month ($27.35B). Secure freight capacity for this specific month immediately. Also, plan for reduced shipping volume in January/February 2026, allowing for maintenance downtime or lower spot-market spending.</li>
+</ol>
+</section>
+<section id="references" class="level1">
+<h1>7. References</h1>
+<p><strong>Data Source:</strong> U.S. Census Bureau. (2025). <em>U.S. Exports to Canada (EXPCA)</em> [Data set]. Federal Reserve Bank of St.&nbsp;Louis (FRED). Retrieved from https://fred.stlouisfed.org/series/EXPCA. [cite_start]<strong>Accessed on: December 7, 2025.</strong> [cite: 320, 321]</p>
+<p><strong>AI Assistance:</strong><br>
+</p>
+<p><strong>Gemini</strong> (December 2025 version) [Large Language Model]. Retrieved from https://gemini.google.com<br>
+</p>
+<p>OpenAI. (2025). <strong>ChatGPT</strong> (GPT-3.5) [Large language model]. Retrieved from https://chat.openai.com<br>
+</p>
+<p><strong>Software and Libraries</strong> Analysis performed using: R version 4.3.2 (2023-10-31 ucrt)</p>
+<div class="tabwid"><style>.cl-5fa0adf2{}.cl-5f93a92c{font-family:'Arial';font-size:11pt;font-weight:bold;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-5f93a954{font-family:'Arial';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-5f9a3b5c{margin:0;text-align:left;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-5f9a59a2{width:1.117in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59ac{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59ad{width:1.117in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59b6{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59b7{width:1.117in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59b8{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59c0{width:1.117in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59ca{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59cb{width:1.117in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59d4{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59d5{width:1.117in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59de{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 0.75pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59df{width:1.117in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-5f9a59e0{width:0.846in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0.75pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}</style><table data-quarto-disable-processing="true" class="cl-5fa0adf2"><thead><tr style="overflow-wrap:break-word;"><th class="cl-5f9a59a2"><p class="cl-5f9a3b5c"><span class="cl-5f93a92c">R Package</span></p></th><th class="cl-5f9a59ac"><p class="cl-5f9a3b5c"><span class="cl-5f93a92c">Version</span></p></th></tr></thead><tbody><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59ad"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">dplyr</span></p></td><td class="cl-5f9a59b6"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">1.1.4</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59b7"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">flextable</span></p></td><td class="cl-5f9a59b8"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">0.9.4</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59b7"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">forecast</span></p></td><td class="cl-5f9a59b8"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">8.22.0</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59c0"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">ggplot2</span></p></td><td class="cl-5f9a59ca"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">4.0.0</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59cb"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">lubridate</span></p></td><td class="cl-5f9a59d4"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">1.9.3</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59cb"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">readxl</span></p></td><td class="cl-5f9a59d4"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">1.4.3</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59cb"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">sandwich</span></p></td><td class="cl-5f9a59d4"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">3.1.1</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59d5"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">strucchange</span></p></td><td class="cl-5f9a59de"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">1.5.4</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-5f9a59df"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">zoo</span></p></td><td class="cl-5f9a59e0"><p class="cl-5f9a3b5c"><span class="cl-5f93a954">1.8.12</span></p></td></tr></tbody></table></div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
